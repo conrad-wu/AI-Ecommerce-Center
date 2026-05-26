@@ -1,0 +1,79 @@
+{
+  "AK820 MAX": {
+    "brand": "AJAZZ",
+    "model": "AK820 MAX",
+    "layout": "75%",
+    "switch": "Magnetic Switch",
+    "connection": "Wired",
+    "language": "German QWERTZ / US Layout",
+    "color": "Grey White Yellow / Gradient Grey / Gradient Pink",
+    "battery": "N/A",
+    "rgb": "RGB"
+  },
+  "AK680 V2 HE": {
+    "brand": "AJAZZ",
+    "model": "AK680 V2 HE",
+    "layout": "65%",
+    "switch": "Magnetic Switch",
+    "connection": "Wired",
+    "language": "US Layout",
+    "color": "Black / White",
+    "battery": "N/A",
+    "rgb": "RGB"
+  },
+  "MK87": {
+    "brand": "AJAZZ",
+    "model": "MK87",
+    "layout": "TKL 87 Keys",
+    "switch": "Mechanical Switch",
+    "connection": "Wireless / USB-C",
+    "language": "US Layout",
+    "color": "White Contour Side-Printed Keycaps",
+    "battery": "Rechargeable",
+    "rgb": "Mixed Backlight"
+  },
+  "AJ159 APEX": {
+    "brand": "AJAZZ",
+    "model": "AJ159 APEX",
+    "layout": "Mouse",
+    "switch": "Gaming Mouse Switch",
+    "connection": "2.4G / USB-C / Bluetooth",
+    "language": "Universal",
+    "color": "Black / White",
+    "battery": "400mAh",
+    "rgb": "RGB Magnetic Charging Base"
+  },
+  "AJ139 V2 MC": {
+    "brand": "AJAZZ",
+    "model": "AJ139 V2 MC",
+    "layout": "Mouse",
+    "switch": "Gaming Mouse Switch",
+    "connection": "2.4G / USB-C / Bluetooth",
+    "language": "Universal",
+    "color": "Black / White",
+    "battery": "Rechargeable",
+    "rgb": "No RGB"
+  },
+  "AKP153E": {
+    "brand": "AJAZZ",
+    "model": "AKP153E",
+    "layout": "Macro Pad",
+    "switch": "Custom Control Knob / Keys",
+    "connection": "USB-C",
+    "language": "International Version",
+    "color": "Black",
+    "battery": "N/A",
+    "rgb": "Display / RGB"
+  },
+  "NK75": {
+    "brand": "NACODEX",
+    "model": "NK75",
+    "layout": "75%",
+    "switch": "Mechanical Switch",
+    "connection": "Wireless / USB-C",
+    "language": "US Layout",
+    "color": "Custom Color",
+    "battery": "Rechargeable",
+    "rgb": "RGB"
+  }
+}
