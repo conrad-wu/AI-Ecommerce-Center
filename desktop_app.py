@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from modules.content_generator import generate_markdown
+from modules.batch_processor import create_sample_excel, process_excel
 
 try:
     from modules.openai_generator import generate_ai_markdown
@@ -27,14 +28,14 @@ except Exception:
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('AI Ecommerce Center V5')
-        self.resize(1150, 850)
+        self.setWindowTitle('AI Ecommerce Center V6.5')
+        self.resize(1180, 880)
         self.latest_markdown = ''
 
         root = QWidget()
         main_layout = QVBoxLayout(root)
 
-        title = QLabel('AI Ecommerce Center V5 - Listing & Material Generator')
+        title = QLabel('AI Ecommerce Center V6.5 - Listing, Material & Batch Excel Generator')
         title.setStyleSheet('font-size: 20px; font-weight: bold; margin-bottom: 8px;')
         main_layout.addWidget(title)
 
@@ -83,7 +84,17 @@ class MainWindow(QMainWindow):
         button_layout.addWidget(clear_btn)
         main_layout.addLayout(button_layout)
 
-        tips = QLabel('Tip: OpenAI AI mode requires a .env file with OPENAI_API_KEY. Local Template mode works offline.')
+        batch_layout = QHBoxLayout()
+        sample_btn = QPushButton('Create Excel Template / 创建Excel模板')
+        sample_btn.clicked.connect(self.create_excel_template)
+        batch_btn = QPushButton('Batch Generate Excel / 批量生成Excel')
+        batch_btn.clicked.connect(self.batch_generate_excel)
+
+        batch_layout.addWidget(sample_btn)
+        batch_layout.addWidget(batch_btn)
+        main_layout.addLayout(batch_layout)
+
+        tips = QLabel('Tip: OpenAI AI mode requires a .env file with OPENAI_API_KEY. Batch Excel currently uses local template generation for stable bulk output.')
         tips.setStyleSheet('color: #666; margin: 4px 0;')
         main_layout.addWidget(tips)
 
@@ -148,6 +159,50 @@ class MainWindow(QMainWindow):
             file.write(self.latest_markdown)
 
         QMessageBox.information(self, 'Export Success', f'File saved:\n{os.path.abspath(path)}')
+
+    def create_excel_template(self):
+        default_name = 'AI_Ecommerce_Batch_Template.xlsx'
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            'Save Excel Template',
+            default_name,
+            'Excel Files (*.xlsx)'
+        )
+        if not path:
+            return
+
+        try:
+            create_sample_excel(path)
+            QMessageBox.information(self, 'Template Created', f'Excel template saved:\n{os.path.abspath(path)}')
+        except Exception as error:
+            QMessageBox.critical(self, 'Create Template Failed', str(error))
+
+    def batch_generate_excel(self):
+        input_file, _ = QFileDialog.getOpenFileName(
+            self,
+            'Select Input Excel',
+            '',
+            'Excel Files (*.xlsx *.xls)'
+        )
+        if not input_file:
+            return
+
+        default_output = f"AI_Ecommerce_Batch_Output_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        output_file, _ = QFileDialog.getSaveFileName(
+            self,
+            'Save Output Excel',
+            default_output,
+            'Excel Files (*.xlsx)'
+        )
+        if not output_file:
+            return
+
+        try:
+            process_excel(input_file, output_file)
+            QMessageBox.information(self, 'Batch Complete', f'Batch output saved:\n{os.path.abspath(output_file)}')
+            self.output.setPlainText(f'Batch generation completed.\n\nInput:\n{input_file}\n\nOutput:\n{output_file}')
+        except Exception as error:
+            QMessageBox.critical(self, 'Batch Generate Failed', str(error))
 
     def clear_output(self):
         self.output.clear()
