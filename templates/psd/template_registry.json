@@ -1,0 +1,26 @@
+{
+  "AJAZZ_Main_01": {
+    "type": "amazon_main",
+    "path": "templates/psd/AJAZZ_Main_01.psd",
+    "output_suffix": "Main_01",
+    "description": "Amazon main image template for AJAZZ keyboards and mice"
+  },
+  "AJAZZ_Main_02": {
+    "type": "amazon_main",
+    "path": "templates/psd/AJAZZ_Main_02.psd",
+    "output_suffix": "Main_02",
+    "description": "Alternative Amazon main image template"
+  },
+  "AJAZZ_Aplus_01": {
+    "type": "amazon_aplus",
+    "path": "templates/psd/AJAZZ_Aplus_01.psd",
+    "output_suffix": "Aplus_01",
+    "description": "Amazon A+ module template"
+  },
+  "TikTok_Showcase_01": {
+    "type": "tiktok_showcase",
+    "path": "templates/psd/TikTok_Showcase_01.psd",
+    "output_suffix": "TikTok_01",
+    "description": "TikTok product showcase template"
+  }
+}
