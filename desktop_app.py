@@ -18,18 +18,23 @@ from PySide6.QtWidgets import (
 )
 from modules.content_generator import generate_markdown
 
+try:
+    from modules.openai_generator import generate_ai_markdown
+except Exception:
+    generate_ai_markdown = None
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('AI Ecommerce Center V4.5')
-        self.resize(1100, 800)
+        self.setWindowTitle('AI Ecommerce Center V5')
+        self.resize(1150, 850)
         self.latest_markdown = ''
 
         root = QWidget()
         main_layout = QVBoxLayout(root)
 
-        title = QLabel('AI Ecommerce Center - Listing & Material Generator')
+        title = QLabel('AI Ecommerce Center V5 - Listing & Material Generator')
         title.setStyleSheet('font-size: 20px; font-weight: bold; margin-bottom: 8px;')
         main_layout.addWidget(title)
 
@@ -44,8 +49,12 @@ class MainWindow(QMainWindow):
         self.color = QLineEdit('Grey White Yellow')
         self.battery = QLineEdit('8000mAh')
         self.rgb = QLineEdit('RGB')
+
         self.platform = QComboBox()
         self.platform.addItems(['Amazon', 'TEMU', 'TikTok Shop', 'AliExpress', 'All Platforms'])
+
+        self.generate_mode = QComboBox()
+        self.generate_mode.addItems(['Local Template / 本地模板', 'OpenAI AI / AI生成'])
 
         form.addRow('Brand / 品牌', self.brand)
         form.addRow('Model / 型号', self.model)
@@ -57,6 +66,7 @@ class MainWindow(QMainWindow):
         form.addRow('Battery / 电池', self.battery)
         form.addRow('Lighting / 灯光', self.rgb)
         form.addRow('Platform / 平台', self.platform)
+        form.addRow('Generate Mode / 生成模式', self.generate_mode)
 
         main_layout.addLayout(form)
 
@@ -72,6 +82,10 @@ class MainWindow(QMainWindow):
         button_layout.addWidget(export_btn)
         button_layout.addWidget(clear_btn)
         main_layout.addLayout(button_layout)
+
+        tips = QLabel('Tip: OpenAI AI mode requires a .env file with OPENAI_API_KEY. Local Template mode works offline.')
+        tips.setStyleSheet('color: #666; margin: 4px 0;')
+        main_layout.addWidget(tips)
 
         self.output = QTextEdit()
         self.output.setPlaceholderText('Generated Amazon / TEMU / TikTok / A+ content will appear here...')
@@ -95,8 +109,25 @@ class MainWindow(QMainWindow):
 
     def generate(self):
         product = self.collect_product()
-        self.latest_markdown = generate_markdown(product)
-        self.output.setPlainText(self.latest_markdown)
+        mode = self.generate_mode.currentText()
+
+        try:
+            if mode.startswith('OpenAI'):
+                if generate_ai_markdown is None:
+                    raise RuntimeError('OpenAI module is not available. Please check modules/openai_generator.py.')
+                self.latest_markdown = generate_ai_markdown(product)
+            else:
+                self.latest_markdown = generate_markdown(product)
+
+            self.output.setPlainText(self.latest_markdown)
+        except Exception as error:
+            QMessageBox.warning(
+                self,
+                'Generate Failed',
+                f'{error}\n\nThe app will use Local Template mode instead.'
+            )
+            self.latest_markdown = generate_markdown(product)
+            self.output.setPlainText(self.latest_markdown)
 
     def export_markdown(self):
         if not self.latest_markdown:
