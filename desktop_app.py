@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 from modules.content_generator import generate_markdown
 from modules.batch_processor import create_sample_excel, process_excel
 from modules.product_library import get_product_by_name, get_product_names
+from modules.asset_exporter import export_material_package
 
 try:
     from modules.openai_generator import generate_ai_markdown
@@ -29,14 +30,14 @@ except Exception:
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('AI Ecommerce Center V8')
-        self.resize(1200, 900)
+        self.setWindowTitle('AI Ecommerce Center V8.6')
+        self.resize(1220, 920)
         self.latest_markdown = ''
 
         root = QWidget()
         main_layout = QVBoxLayout(root)
 
-        title = QLabel('AI Ecommerce Center V8 - Product Library, Listing, Batch Excel & Material Generator')
+        title = QLabel('AI Ecommerce Center V8.6 - Product Library, Listing, Batch Excel & Material Package Generator')
         title.setStyleSheet('font-size: 20px; font-weight: bold; margin-bottom: 8px;')
         main_layout.addWidget(title)
 
@@ -88,11 +89,14 @@ class MainWindow(QMainWindow):
         generate_btn.clicked.connect(self.generate)
         export_btn = QPushButton('Export Markdown / 导出 Markdown')
         export_btn.clicked.connect(self.export_markdown)
+        package_btn = QPushButton('Export Material Package / 导出素材包')
+        package_btn.clicked.connect(self.export_material_package_ui)
         clear_btn = QPushButton('Clear / 清空')
         clear_btn.clicked.connect(self.clear_output)
 
         button_layout.addWidget(generate_btn)
         button_layout.addWidget(export_btn)
+        button_layout.addWidget(package_btn)
         button_layout.addWidget(clear_btn)
         main_layout.addLayout(button_layout)
 
@@ -106,7 +110,7 @@ class MainWindow(QMainWindow):
         batch_layout.addWidget(batch_btn)
         main_layout.addLayout(batch_layout)
 
-        tips = QLabel('Tip: Select a product model to auto-fill parameters. OpenAI AI mode requires a .env file with OPENAI_API_KEY.')
+        tips = QLabel('Tip: Material Package exports listing.md, image_prompts.txt and assets.json for design / PSD workflow.')
         tips.setStyleSheet('color: #666; margin: 4px 0;')
         main_layout.addWidget(tips)
 
@@ -194,6 +198,21 @@ class MainWindow(QMainWindow):
             file.write(self.latest_markdown)
 
         QMessageBox.information(self, 'Export Success', f'File saved:\n{os.path.abspath(path)}')
+
+    def export_material_package_ui(self):
+        product = self.collect_product()
+        root_dir = QFileDialog.getExistingDirectory(self, 'Select Material Package Output Folder')
+        if not root_dir:
+            return
+
+        try:
+            output_dir = export_material_package(product, root_dir)
+            QMessageBox.information(self, 'Material Package Exported', f'Material package saved:\n{os.path.abspath(output_dir)}')
+            self.output.setPlainText(
+                f'Material package exported successfully.\n\nFolder:\n{output_dir}\n\nFiles:\n- listing.md\n- image_prompts.txt\n- assets.json'
+            )
+        except Exception as error:
+            QMessageBox.critical(self, 'Material Package Export Failed', str(error))
 
     def create_excel_template(self):
         default_name = 'AI_Ecommerce_Batch_Template.xlsx'
