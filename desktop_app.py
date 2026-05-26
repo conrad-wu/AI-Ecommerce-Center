@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 )
 from modules.content_generator import generate_markdown
 from modules.batch_processor import create_sample_excel, process_excel
+from modules.product_library import get_product_by_name, get_product_names
 
 try:
     from modules.openai_generator import generate_ai_markdown
@@ -28,18 +29,22 @@ except Exception:
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('AI Ecommerce Center V6.5')
-        self.resize(1180, 880)
+        self.setWindowTitle('AI Ecommerce Center V8')
+        self.resize(1200, 900)
         self.latest_markdown = ''
 
         root = QWidget()
         main_layout = QVBoxLayout(root)
 
-        title = QLabel('AI Ecommerce Center V6.5 - Listing, Material & Batch Excel Generator')
+        title = QLabel('AI Ecommerce Center V8 - Product Library, Listing, Batch Excel & Material Generator')
         title.setStyleSheet('font-size: 20px; font-weight: bold; margin-bottom: 8px;')
         main_layout.addWidget(title)
 
         form = QFormLayout()
+
+        self.product_library = QComboBox()
+        self.product_library.addItem('Custom / 自定义')
+        self.product_library.addItems(get_product_names())
 
         self.brand = QLineEdit('AJAZZ')
         self.model = QLineEdit('AK820 MAX')
@@ -57,6 +62,13 @@ class MainWindow(QMainWindow):
         self.generate_mode = QComboBox()
         self.generate_mode.addItems(['Local Template / 本地模板', 'OpenAI AI / AI生成'])
 
+        library_row = QHBoxLayout()
+        library_row.addWidget(self.product_library)
+        load_btn = QPushButton('Load Product / 自动填充')
+        load_btn.clicked.connect(self.load_product_from_library)
+        library_row.addWidget(load_btn)
+
+        form.addRow('Product Library / 产品库型号', library_row)
         form.addRow('Brand / 品牌', self.brand)
         form.addRow('Model / 型号', self.model)
         form.addRow('Layout / 布局', self.layout)
@@ -94,7 +106,7 @@ class MainWindow(QMainWindow):
         batch_layout.addWidget(batch_btn)
         main_layout.addLayout(batch_layout)
 
-        tips = QLabel('Tip: OpenAI AI mode requires a .env file with OPENAI_API_KEY. Batch Excel currently uses local template generation for stable bulk output.')
+        tips = QLabel('Tip: Select a product model to auto-fill parameters. OpenAI AI mode requires a .env file with OPENAI_API_KEY.')
         tips.setStyleSheet('color: #666; margin: 4px 0;')
         main_layout.addWidget(tips)
 
@@ -103,6 +115,29 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.output)
 
         self.setCentralWidget(root)
+
+    def load_product_from_library(self):
+        name = self.product_library.currentText()
+        if name.startswith('Custom'):
+            QMessageBox.information(self, 'Product Library', 'Please select a product model from the library.')
+            return
+
+        product = get_product_by_name(name)
+        if not product:
+            QMessageBox.warning(self, 'Product Library', f'No data found for {name}.')
+            return
+
+        self.brand.setText(product.get('brand', ''))
+        self.model.setText(product.get('model', ''))
+        self.layout.setText(product.get('layout', ''))
+        self.switch.setText(product.get('switch', ''))
+        self.connection.setText(product.get('connection', ''))
+        self.language.setText(product.get('language', ''))
+        self.color.setText(product.get('color', ''))
+        self.battery.setText(product.get('battery', ''))
+        self.rgb.setText(product.get('rgb', ''))
+
+        self.output.setPlainText(f'Loaded product from library: {name}\n\nYou can adjust color, platform or language before generating content.')
 
     def collect_product(self) -> dict:
         return {
