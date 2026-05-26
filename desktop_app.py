@@ -21,6 +21,7 @@ from modules.batch_processor import create_sample_excel, process_excel
 from modules.product_library import get_product_by_name, get_product_names
 from modules.asset_exporter import export_material_package
 from modules.product_database import upsert_product, search_products, find_product_by_sku
+from modules.product_importer import create_product_import_template, import_products_from_excel
 
 try:
     from modules.openai_generator import generate_ai_markdown
@@ -31,14 +32,14 @@ except Exception:
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('AI Ecommerce Center V10.1')
-        self.resize(1240, 940)
+        self.setWindowTitle('AI Ecommerce Center V10.2')
+        self.resize(1260, 960)
         self.latest_markdown = ''
 
         root = QWidget()
         main_layout = QVBoxLayout(root)
 
-        title = QLabel('AI Ecommerce Center V10.1 - Product Center, Listing, Batch Excel & Material Package Generator')
+        title = QLabel('AI Ecommerce Center V10.2 - Product Center, Import, Listing, Batch & Material Package')
         title.setStyleSheet('font-size: 20px; font-weight: bold; margin-bottom: 8px;')
         main_layout.addWidget(title)
 
@@ -102,10 +103,16 @@ class MainWindow(QMainWindow):
         load_db_btn.clicked.connect(self.load_product_by_sku)
         search_db_btn = QPushButton('Search DB / 搜索数据库')
         search_db_btn.clicked.connect(self.search_product_db)
+        create_import_template_btn = QPushButton('Create Product Import Template / 产品导入模板')
+        create_import_template_btn.clicked.connect(self.create_product_import_template_ui)
+        import_products_btn = QPushButton('Import Products to DB / 导入产品库')
+        import_products_btn.clicked.connect(self.import_products_to_db_ui)
 
         db_layout.addWidget(save_db_btn)
         db_layout.addWidget(load_db_btn)
         db_layout.addWidget(search_db_btn)
+        db_layout.addWidget(create_import_template_btn)
+        db_layout.addWidget(import_products_btn)
         main_layout.addLayout(db_layout)
 
         button_layout = QHBoxLayout()
@@ -113,7 +120,7 @@ class MainWindow(QMainWindow):
         generate_btn.clicked.connect(self.generate)
         export_btn = QPushButton('Export Markdown / 导出 Markdown')
         export_btn.clicked.connect(self.export_markdown)
-        package_btn = QPushButton('Export Material Package / 导出素材包')
+        package_btn = QPushButton('Generate Package / 一键素材包')
         package_btn.clicked.connect(self.export_material_package_ui)
         clear_btn = QPushButton('Clear / 清空')
         clear_btn.clicked.connect(self.clear_output)
@@ -125,16 +132,16 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(button_layout)
 
         batch_layout = QHBoxLayout()
-        sample_btn = QPushButton('Create Excel Template / 创建Excel模板')
+        sample_btn = QPushButton('Create Listing Excel Template / Listing模板')
         sample_btn.clicked.connect(self.create_excel_template)
-        batch_btn = QPushButton('Batch Generate Excel / 批量生成Excel')
+        batch_btn = QPushButton('Batch Generate Listing Excel / 批量Listing')
         batch_btn.clicked.connect(self.batch_generate_excel)
 
         batch_layout.addWidget(sample_btn)
         batch_layout.addWidget(batch_btn)
         main_layout.addLayout(batch_layout)
 
-        tips = QLabel('Tip: V10.1 adds SQLite Product Center. Save products by SKU, search them, and reuse parameters for AI listing / PSD workflow.')
+        tips = QLabel('Tip: V10.2 supports Excel → Product DB, single-product package generation, and batch listing export.')
         tips.setStyleSheet('color: #666; margin: 4px 0;')
         main_layout.addWidget(tips)
 
@@ -235,6 +242,37 @@ class MainWindow(QMainWindow):
             lines.append(f"SKU: {product.get('sku', '')} | {product.get('brand', '')} {product.get('model', '')} | {product.get('color', '')}")
         self.output.setPlainText('\n'.join(lines))
 
+    def create_product_import_template_ui(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            'Save Product Import Template',
+            'Product_Import_Template.xlsx',
+            'Excel Files (*.xlsx)'
+        )
+        if not path:
+            return
+        try:
+            create_product_import_template(path)
+            QMessageBox.information(self, 'Template Created', f'Product import template saved:\n{os.path.abspath(path)}')
+        except Exception as error:
+            QMessageBox.critical(self, 'Create Template Failed', str(error))
+
+    def import_products_to_db_ui(self):
+        input_file, _ = QFileDialog.getOpenFileName(
+            self,
+            'Select Product Import Excel',
+            '',
+            'Excel Files (*.xlsx *.xls)'
+        )
+        if not input_file:
+            return
+        try:
+            imported = import_products_from_excel(input_file)
+            QMessageBox.information(self, 'Import Complete', f'Imported / updated {len(imported)} product(s).')
+            self.output.setPlainText('Imported products:\n\n' + '\n'.join(imported[:200]))
+        except Exception as error:
+            QMessageBox.critical(self, 'Import Failed', str(error))
+
     def generate(self):
         product = self.collect_product()
         mode = self.generate_mode.currentText()
@@ -284,10 +322,13 @@ class MainWindow(QMainWindow):
             return
 
         try:
+            if not self.latest_markdown:
+                self.generate()
             output_dir = export_material_package(product, root_dir)
+            upsert_product(product)
             QMessageBox.information(self, 'Material Package Exported', f'Material package saved:\n{os.path.abspath(output_dir)}')
             self.output.setPlainText(
-                f'Material package exported successfully.\n\nFolder:\n{output_dir}\n\nFiles:\n- listing.md\n- image_prompts.txt\n- assets.json'
+                f'Material package exported successfully.\n\nFolder:\n{output_dir}\n\nFiles:\n- listing.md\n- image_prompts.txt\n- assets.json\n\nProduct also saved to database.'
             )
         except Exception as error:
             QMessageBox.critical(self, 'Material Package Export Failed', str(error))
@@ -296,7 +337,7 @@ class MainWindow(QMainWindow):
         default_name = 'AI_Ecommerce_Batch_Template.xlsx'
         path, _ = QFileDialog.getSaveFileName(
             self,
-            'Save Excel Template',
+            'Save Listing Excel Template',
             default_name,
             'Excel Files (*.xlsx)'
         )
