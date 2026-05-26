@@ -20,6 +20,7 @@ from modules.content_generator import generate_markdown
 from modules.batch_processor import create_sample_excel, process_excel
 from modules.product_library import get_product_by_name, get_product_names
 from modules.asset_exporter import export_material_package
+from modules.product_database import upsert_product, search_products, find_product_by_sku
 
 try:
     from modules.openai_generator import generate_ai_markdown
@@ -30,14 +31,14 @@ except Exception:
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('AI Ecommerce Center V8.6')
-        self.resize(1220, 920)
+        self.setWindowTitle('AI Ecommerce Center V10.1')
+        self.resize(1240, 940)
         self.latest_markdown = ''
 
         root = QWidget()
         main_layout = QVBoxLayout(root)
 
-        title = QLabel('AI Ecommerce Center V8.6 - Product Library, Listing, Batch Excel & Material Package Generator')
+        title = QLabel('AI Ecommerce Center V10.1 - Product Center, Listing, Batch Excel & Material Package Generator')
         title.setStyleSheet('font-size: 20px; font-weight: bold; margin-bottom: 8px;')
         main_layout.addWidget(title)
 
@@ -47,8 +48,10 @@ class MainWindow(QMainWindow):
         self.product_library.addItem('Custom / 自定义')
         self.product_library.addItems(get_product_names())
 
+        self.sku = QLineEdit('AK820MAX-DE-GWY')
         self.brand = QLineEdit('AJAZZ')
         self.model = QLineEdit('AK820 MAX')
+        self.category = QLineEdit('Keyboard')
         self.layout = QLineEdit('75%')
         self.switch = QLineEdit('Magnetic Switch')
         self.connection = QLineEdit('Wired')
@@ -56,6 +59,9 @@ class MainWindow(QMainWindow):
         self.color = QLineEdit('Grey White Yellow')
         self.battery = QLineEdit('8000mAh')
         self.rgb = QLineEdit('RGB')
+        self.weight = QLineEdit('')
+        self.dimensions = QLineEdit('')
+        self.notes = QLineEdit('')
 
         self.platform = QComboBox()
         self.platform.addItems(['Amazon', 'TEMU', 'TikTok Shop', 'AliExpress', 'All Platforms'])
@@ -70,8 +76,10 @@ class MainWindow(QMainWindow):
         library_row.addWidget(load_btn)
 
         form.addRow('Product Library / 产品库型号', library_row)
+        form.addRow('SKU', self.sku)
         form.addRow('Brand / 品牌', self.brand)
         form.addRow('Model / 型号', self.model)
+        form.addRow('Category / 分类', self.category)
         form.addRow('Layout / 布局', self.layout)
         form.addRow('Switch / 轴体', self.switch)
         form.addRow('Connection / 连接方式', self.connection)
@@ -79,10 +87,26 @@ class MainWindow(QMainWindow):
         form.addRow('Color / 配色', self.color)
         form.addRow('Battery / 电池', self.battery)
         form.addRow('Lighting / 灯光', self.rgb)
+        form.addRow('Weight / 重量', self.weight)
+        form.addRow('Dimensions / 尺寸', self.dimensions)
         form.addRow('Platform / 平台', self.platform)
+        form.addRow('Notes / 备注', self.notes)
         form.addRow('Generate Mode / 生成模式', self.generate_mode)
 
         main_layout.addLayout(form)
+
+        db_layout = QHBoxLayout()
+        save_db_btn = QPushButton('Save to DB / 保存到数据库')
+        save_db_btn.clicked.connect(self.save_product_to_db)
+        load_db_btn = QPushButton('Load by SKU / 按SKU加载')
+        load_db_btn.clicked.connect(self.load_product_by_sku)
+        search_db_btn = QPushButton('Search DB / 搜索数据库')
+        search_db_btn.clicked.connect(self.search_product_db)
+
+        db_layout.addWidget(save_db_btn)
+        db_layout.addWidget(load_db_btn)
+        db_layout.addWidget(search_db_btn)
+        main_layout.addLayout(db_layout)
 
         button_layout = QHBoxLayout()
         generate_btn = QPushButton('Generate / 生成素材')
@@ -110,7 +134,7 @@ class MainWindow(QMainWindow):
         batch_layout.addWidget(batch_btn)
         main_layout.addLayout(batch_layout)
 
-        tips = QLabel('Tip: Material Package exports listing.md, image_prompts.txt and assets.json for design / PSD workflow.')
+        tips = QLabel('Tip: V10.1 adds SQLite Product Center. Save products by SKU, search them, and reuse parameters for AI listing / PSD workflow.')
         tips.setStyleSheet('color: #666; margin: 4px 0;')
         main_layout.addWidget(tips)
 
@@ -140,13 +164,17 @@ class MainWindow(QMainWindow):
         self.color.setText(product.get('color', ''))
         self.battery.setText(product.get('battery', ''))
         self.rgb.setText(product.get('rgb', ''))
+        self.category.setText('Keyboard' if product.get('layout', '') != 'Mouse' else 'Mouse')
+        self.sku.setText(f"{product.get('brand', '')}-{product.get('model', '')}".replace(' ', '_'))
 
-        self.output.setPlainText(f'Loaded product from library: {name}\n\nYou can adjust color, platform or language before generating content.')
+        self.output.setPlainText(f'Loaded product from library: {name}\n\nYou can adjust SKU, color, platform or language before saving / generating content.')
 
     def collect_product(self) -> dict:
         return {
+            'sku': self.sku.text(),
             'brand': self.brand.text(),
             'model': self.model.text(),
+            'category': self.category.text(),
             'layout': self.layout.text(),
             'switch': self.switch.text(),
             'connection': self.connection.text(),
@@ -154,8 +182,58 @@ class MainWindow(QMainWindow):
             'color': self.color.text(),
             'battery': self.battery.text(),
             'rgb': self.rgb.text(),
+            'weight': self.weight.text(),
+            'dimensions': self.dimensions.text(),
             'platform': self.platform.currentText(),
+            'notes': self.notes.text(),
         }
+
+    def fill_product_form(self, product: dict):
+        self.sku.setText(product.get('sku', ''))
+        self.brand.setText(product.get('brand', ''))
+        self.model.setText(product.get('model', ''))
+        self.category.setText(product.get('category', ''))
+        self.layout.setText(product.get('layout', ''))
+        self.switch.setText(product.get('switch', ''))
+        self.connection.setText(product.get('connection', ''))
+        self.language.setText(product.get('language', ''))
+        self.color.setText(product.get('color', ''))
+        self.battery.setText(product.get('battery', ''))
+        self.rgb.setText(product.get('rgb', ''))
+        self.weight.setText(product.get('weight', ''))
+        self.dimensions.setText(product.get('dimensions', ''))
+        self.notes.setText(product.get('notes', ''))
+
+    def save_product_to_db(self):
+        try:
+            sku = upsert_product(self.collect_product())
+            QMessageBox.information(self, 'Product Saved', f'Product saved to database:\n{sku}')
+            self.output.setPlainText(f'Product saved to database: {sku}')
+        except Exception as error:
+            QMessageBox.critical(self, 'Save Failed', str(error))
+
+    def load_product_by_sku(self):
+        sku = self.sku.text().strip()
+        if not sku:
+            QMessageBox.warning(self, 'Missing SKU', 'Please input SKU first.')
+            return
+        product = find_product_by_sku(sku)
+        if not product:
+            QMessageBox.warning(self, 'Not Found', f'No product found for SKU: {sku}')
+            return
+        self.fill_product_form(product)
+        self.output.setPlainText(f'Loaded product from database:\n{sku}')
+
+    def search_product_db(self):
+        keyword = self.model.text().strip() or self.sku.text().strip() or self.brand.text().strip()
+        products = search_products(keyword)
+        if not products:
+            self.output.setPlainText(f'No products found for keyword: {keyword}')
+            return
+        lines = [f"Found {len(products)} product(s) for keyword: {keyword}", '']
+        for product in products[:50]:
+            lines.append(f"SKU: {product.get('sku', '')} | {product.get('brand', '')} {product.get('model', '')} | {product.get('color', '')}")
+        self.output.setPlainText('\n'.join(lines))
 
     def generate(self):
         product = self.collect_product()
